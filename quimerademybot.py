@@ -158,7 +158,7 @@ def main():
             COURSE: [MessageHandler(filters.TEXT, choose_course)],
             MODULE: [MessageHandler(filters.TEXT, show_module)],
             EXERCISE: [MessageHandler(filters.TEXT, execute_code)],
-            END: [MessageHandler(filters.TEXT, end)],
+            END: [MessageHandler(filters.TEXT, END)],
         },
         fallbacks=[CommandHandler('start', start)],
     )
