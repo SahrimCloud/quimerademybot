@@ -5,15 +5,31 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 from telegram.ext import ConversationHandler
 
 # Definimos los estados de la conversación
-COURSE, EXERCISE, ANSWER, CODE, END = range(5)
+COURSE, MODULE, EXERCISE, ANSWER, CODE, END = range(6)
 
 # Diccionario para almacenar el estado del curso de cada usuario
 user_courses = {}
 
+# Estructura de los módulos para cada lenguaje
+modules = {
+    'python': [
+        {"module": "Introducción", "description": "Aprende lo básico de Python, como variables y operaciones.", "example": "a = 5\nb = 10\nprint(a + b)"},
+        {"module": "Condicionales", "description": "Aprende a usar condicionales con if, elif, else.", "example": "x = 10\nif x > 5:\n    print('Mayor que 5')"},
+    ],
+    'javascript': [
+        {"module": "Introducción", "description": "Aprende lo básico de JavaScript, como variables y funciones.", "example": "let a = 5;\nlet b = 10;\nconsole.log(a + b);"},
+        {"module": "Funciones", "description": "Aprende a declarar y utilizar funciones.", "example": "function sum(a, b) {\n    return a + b;\n}\nconsole.log(sum(5, 10));"},
+    ],
+    'sqlite': [
+        {"module": "Creación de Tablas", "description": "Aprende a crear tablas en SQLite.", "example": "CREATE TABLE usuarios (id INTEGER PRIMARY KEY, nombre TEXT);"},
+        {"module": "Insertar Datos", "description": "Aprende a insertar datos en las tablas.", "example": "INSERT INTO usuarios (nombre) VALUES ('Juan');"},
+    ]
+}
+
 # Función para comenzar el bot y ofrecer opciones de aprendizaje
 async def start(update: Update, context: CallbackContext) -> int:
     user_id = update.message.from_user.id
-    user_courses[user_id] = {'course': None, 'level': 1}
+    user_courses[user_id] = {'course': None, 'level': 1, 'module': None}
     await update.message.reply_text(
         "¡Hola! Bienvenido al bot de aprendizaje de programación. "
         "Elige una opción para aprender:\n"
@@ -30,83 +46,68 @@ async def choose_course(update: Update, context: CallbackContext) -> int:
 
     if course == '/python':
         user_courses[user_id]['course'] = 'python'
-        await update.message.reply_text("Has elegido aprender Python. Comencemos con un ejercicio.")
-        return await python_exercise(update, context)
+        await update.message.reply_text("Has elegido aprender Python. Elige un módulo:")
+        return await choose_module(update, context)
 
     elif course == '/javascript':
         user_courses[user_id]['course'] = 'javascript'
-        await update.message.reply_text("Has elegido aprender JavaScript. Comencemos con un ejercicio.")
-        return await javascript_exercise(update, context)
+        await update.message.reply_text("Has elegido aprender JavaScript. Elige un módulo:")
+        return await choose_module(update, context)
 
     elif course == '/sqlite':
         user_courses[user_id]['course'] = 'sqlite'
-        await update.message.reply_text("Has elegido aprender SQLite. Comencemos con un ejercicio.")
-        return await sqlite_exercise(update, context)
+        await update.message.reply_text("Has elegido aprender SQLite. Elige un módulo:")
+        return await choose_module(update, context)
 
     else:
         await update.message.reply_text("Por favor, elige un curso válido: /python, /javascript o /sqlite.")
         return COURSE
 
-# Ejercicio de Python
-async def python_exercise(update: Update, context: CallbackContext) -> int:
+# Función para elegir el módulo
+async def choose_module(update: Update, context: CallbackContext) -> int:
     user_id = update.message.from_user.id
-    level = user_courses[user_id]['level']
+    course = user_courses[user_id]['course']
 
-    if level == 1:
-        await update.message.reply_text("Escribe un código en Python para imprimir 'Hola, mundo'.")
-        return CODE
-    elif level == 2:
-        await update.message.reply_text("Escribe un código en Python para sumar dos números.")
-        return CODE
-    else:
-        await update.message.reply_text("¡Felicidades! Has completado el curso de Python.")
-        return END
+    # Mostrar los módulos disponibles
+    available_modules = modules[course]
+    module_list = "\n".join([f"{index + 1}. {module['module']}" for index, module in enumerate(available_modules)])
+    await update.message.reply_text(f"Elige un módulo:\n{module_list}")
+    return MODULE
 
-# Ejercicio de JavaScript
-async def javascript_exercise(update: Update, context: CallbackContext) -> int:
+# Función para mostrar teoría, ejemplos y ejercicio
+async def show_module(update: Update, context: CallbackContext) -> int:
     user_id = update.message.from_user.id
-    level = user_courses[user_id]['level']
+    course = user_courses[user_id]['course']
+    module_index = int(update.message.text.strip()) - 1
 
-    if level == 1:
-        await update.message.reply_text("Escribe un código en JavaScript para imprimir 'Hola, mundo'.")
-        return CODE
-    elif level == 2:
-        await update.message.reply_text("Escribe un código en JavaScript para sumar dos números.")
-        return CODE
-    else:
-        await update.message.reply_text("¡Felicidades! Has completado el curso de JavaScript.")
-        return END
+    if module_index < 0 or module_index >= len(modules[course]):
+        await update.message.reply_text("Por favor, selecciona un módulo válido.")
+        return MODULE
 
-# Ejercicio de SQLite
-async def sqlite_exercise(update: Update, context: CallbackContext) -> int:
-    user_id = update.message.from_user.id
-    level = user_courses[user_id]['level']
+    # Guardamos el módulo seleccionado
+    user_courses[user_id]['module'] = module_index
+    module = modules[course][module_index]
 
-    if level == 1:
-        await update.message.reply_text("Escribe una consulta en SQLite para crear una tabla llamada 'usuarios'.")
-        return CODE
-    elif level == 2:
-        await update.message.reply_text("Escribe una consulta en SQLite para insertar un registro en la tabla 'usuarios'.")
-        return CODE
-    else:
-        await update.message.reply_text("¡Felicidades! Has completado el curso de SQLite.")
-        return END
+    # Enviar descripción y ejemplo
+    await update.message.reply_text(f"**Módulo: {module['module']}**\n\n{module['description']}\n\nEjemplo de código:\n```\n{module['example']}\n```")
+    await update.message.reply_text("Ahora, intenta resolver el ejercicio. Escribe el código que creas que resuelve el problema.")
+    return EXERCISE
 
 # Función para manejar la ejecución de código enviado por el usuario
 async def execute_code(update: Update, context: CallbackContext) -> int:
     user_id = update.message.from_user.id
     course = user_courses[user_id]['course']
     user_code = update.message.text.strip()
+    module_index = user_courses[user_id]['module']
+    module = modules[course][module_index]
 
     if course == 'python':
-        # Ejecutar código Python de manera controlada
         try:
             exec(user_code)  # Esta es una operación peligrosa, se debería implementar un entorno seguro
             result = "Código ejecutado con éxito."
         except Exception as e:
             result = f"Hubo un error en el código: {str(e)}"
     elif course == 'javascript':
-        # Ejecutar código JavaScript usando node.js
         try:
             process = subprocess.Popen(
                 ['node', '-e', user_code],
@@ -121,7 +122,6 @@ async def execute_code(update: Update, context: CallbackContext) -> int:
         except Exception as e:
             result = f"Hubo un error al ejecutar el código: {str(e)}"
     elif course == 'sqlite':
-        # Ejecutar consulta SQLite en una base de datos en memoria
         import sqlite3
         try:
             conn = sqlite3.connect(":memory:")
@@ -139,14 +139,10 @@ async def execute_code(update: Update, context: CallbackContext) -> int:
     # Avanzar a la siguiente pregunta o terminar el curso
     user_courses[user_id]['level'] += 1
     if user_courses[user_id]['level'] <= 2:
-        return await choose_course(update, context)
+        return await choose_module(update, context)
     else:
+        await update.message.reply_text("¡Has completado el curso con éxito! Si deseas empezar de nuevo, usa el comando /start.")
         return END
-
-# Función para finalizar el curso
-async def end(update: Update, context: CallbackContext) -> int:
-    await update.message.reply_text("¡Has completado el curso con éxito! Si deseas empezar de nuevo, usa el comando /start.")
-    return ConversationHandler.END
 
 # Configuración del bot
 def main():
@@ -160,7 +156,8 @@ def main():
         entry_points=[CommandHandler('start', start)],
         states={
             COURSE: [MessageHandler(filters.TEXT, choose_course)],
-            CODE: [MessageHandler(filters.TEXT, execute_code)],
+            MODULE: [MessageHandler(filters.TEXT, show_module)],
+            EXERCISE: [MessageHandler(filters.TEXT, execute_code)],
             END: [MessageHandler(filters.TEXT, end)],
         },
         fallbacks=[CommandHandler('start', start)],
